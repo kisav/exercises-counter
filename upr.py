@@ -1,5 +1,47 @@
 import json
 import time as t
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import sqlite3
+
+TOKEN = "8429069048:AAE6P_Oce1Sees58esq-FS6Y6jxGc9-BmfM"
+PUSHUPS, SQUATS, ABDOMINAL = range(3)
+
+conn = sqlite3.connect("database.db")
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY,
+    pushups INTEGER,
+    squats INTEGER,
+    abdominal INTEGER
+)
+""")
+conn.commit()
+
+def save_user(user_id):
+    cursor.execute(
+        "INSERT OR REPLACE INTO users (user_id) VALUES (?)",
+        (user_id,)
+    )
+    conn.commit()
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Бот работает.")
+    save_user(update.effective_user.id)
+
+async def launch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    await update.message.reply_text(f"Твой user_id={uid}")
+
+
+app = ApplicationBuilder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("launch", launch))
+
+app.run_polling()
 
 def main():
     try:
@@ -56,7 +98,7 @@ def main():
         with open("exersices.json", "w", encoding="utf-8") as f:
             json.dump([total_pushups, total_squats, total_abdominal], f)
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
 

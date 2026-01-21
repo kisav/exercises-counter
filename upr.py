@@ -40,12 +40,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Бот работает.")
 
 async def ask_exercise(context):
+    chat_id = context.job.chat_id
+
+    context.application.chat_data[chat_id]["awaiting"] = True
+
     await context.bot.send_message(
         chat_id=context.job.chat_id,
         text="Напиши кол-во сделанных упражнений через пробел."
     )
 
 async def save_exercise(update, context):
+    cd = context.chat_data
+
+    if not cd.get("awaiting"):
+        return
+
+    cd["awaiting"] = False
+
     user_id = update.effective_user.id
     exercises = update.message.text.split(' ')
 
@@ -81,7 +92,6 @@ async def launch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text("Я буду задавать тебе вопрос раз в 10 секунд.")
-    return ASK_EXERCISES
 
 
 async def stop(update, context):
@@ -99,82 +109,19 @@ async def stop(update, context):
 
     await update.message.reply_text("Задача остановлена.")
 
-fsm = ConversationHandler(
-    entry_points=[CommandHandler("launch", launch)],
-    states={
-        ASK_EXERCISES: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, save_exercise)
-        ],
-    },
-    fallbacks=[],
-)
+
 
 
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("stop", stop))
-app.add_handler(fsm)
+app.add_handler(CommandHandler("launch", launch))
+app.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, save_exercise)
+)
 
 
 app.run_polling()
-
-def main():
-    try:
-        pushups = int(input('Введите число отжиманий: '))
-        squats = int(input('Введите число приседаний: '))
-        abdominal = int(input('Введите число пресса: '))
-    except Exception as e:
-        print(f'Ошибка: {e}')
-        pushups = int(input('Введите число отжиманий: '))
-        squats = int(input('Введите число приседаний: '))
-        abdominal = int(input('Введите число пресса: '))
-
-    try:
-        with open("exersices.json", "r", encoding="utf-8") as f:
-            total_pushups, total_squats, total_abdominal = json.load(f)
-    except json.JSONDecodeError:
-        total_squats = []
-        total_pushups = []
-        total_abdominal = []
-    print('Opened')
-
-    total_squats.append(squats)
-    total_pushups.append(pushups)
-    total_abdominal.append(abdominal)
-    print('added')
-
-    while True:
-        t.sleep(3)
-        try:
-            pushups = int(input('Введите число отжиманий: '))
-            squats = int(input('Введите число приседаний: '))
-            abdominal = int(input('Введите число пресса: '))
-        except Exception as e:
-            print(f'Ошибка: {e}')
-            pushups = int(input('Введите число отжиманий: '))
-            squats = int(input('Введите число приседаний: '))
-            abdominal = int(input('Введите число пресса: '))
-
-        total_squats.append(squats)
-        total_pushups.append(pushups)
-        total_abdominal.append(abdominal)
-
-        sum_pushups = sum(total_pushups)
-        sum_squats = sum(total_squats)
-        sum_abdominal = sum(total_abdominal)
-
-
-        print('Всего:')
-        print(f'Отжиманий: {sum_pushups}')
-        print(f'Приседаний: {sum_squats}')
-        print(f'Пресса: {sum_abdominal}')
-
-
-        with open("exersices.json", "w", encoding="utf-8") as f:
-            json.dump([total_pushups, total_squats, total_abdominal], f)
-
-# if __name__ == "__main__":
-#     main()
 
 

@@ -109,14 +109,22 @@ async def stop(update, context):
 
     await update.message.reply_text("Задача остановлена.")
 
+async def reset(update, context):
+    user_id = update.effective_user.id
 
+    cursor.execute(
+        "DELETE FROM users WHERE user_id = ?",
+        (user_id,)  # user_id — конкретное значение
+    )
 
+    await update.message.reply_text("Все записи удалены.")
 
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("stop", stop))
 app.add_handler(CommandHandler("launch", launch))
+app.add_handler(CommandHandler("reset", reset))
 app.add_handler(
     MessageHandler(filters.TEXT & ~filters.COMMAND, save_exercise)
 )

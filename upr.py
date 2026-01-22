@@ -1,5 +1,3 @@
-import json
-import time as t
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -12,7 +10,10 @@ from telegram.ext import (
 )
 import sqlite3
 
-TOKEN = "8429069048:AAE6P_Oce1Sees58esq-FS6Y6jxGc9-BmfM"
+with open("tokens.txt", "r", encoding="utf-8") as f:
+    token = f.read()
+
+TOKEN = f"{token}"
 ASK_TIME = range(1)
 
 conn = sqlite3.connect("database.db")

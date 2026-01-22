@@ -13,7 +13,7 @@ from telegram.ext import (
 import sqlite3
 
 TOKEN = "8429069048:AAE6P_Oce1Sees58esq-FS6Y6jxGc9-BmfM"
-ASK_EXERCISES = range(1)
+ASK_TIME = range(1)
 
 conn = sqlite3.connect("database.db")
 cursor = conn.cursor()
@@ -25,6 +25,13 @@ CREATE TABLE IF NOT EXISTS users (
     pushups INTEGER,
     squats INTEGER,
     abdominal INTEGER
+)
+""")
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER UNIQUE,
+    period INTEGER
 )
 """)
 conn.commit()
@@ -48,6 +55,45 @@ async def ask_exercise(context):
         chat_id=context.job.chat_id,
         text="Напиши кол-во сделанных упражнений через пробел."
     )
+
+async def ask_time(update, context):
+    user_id = update.effective_user.id
+    job_name = str(user_id)
+
+    jobs = context.job_queue.get_jobs_by_name(job_name)
+
+
+    if jobs:
+        await update.message.reply_text("Нельзя вводить время, когда активен сбор")
+        return ConversationHandler.END
+
+    await update.message.reply_text("Введите время, через которое будет спрашиваться статистика")
+    return ASK_TIME
+
+
+async def get_time(update, context):
+    uid = update.effective_user.id
+
+    try:
+        period = int(update.message.text)
+        if period <= 0:
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("Введите положительное число секунд")
+        return ASK_TIME
+
+    cursor.execute(
+        "INSERT OR REPLACE INTO users_data (user_id, period) VALUES (?, ?)",
+        (uid, period)
+    )
+    conn.commit()
+
+    await update.message.reply_text(
+        f"Теперь я буду спрашивать статистику каждые {period} секунд"
+    )
+    return ConversationHandler.END
+
+
 
 async def save_exercise(update, context):
     cd = context.chat_data
@@ -80,18 +126,24 @@ async def save_exercise(update, context):
     return ConversationHandler.END
 
 async def launch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
     chat_id = update.effective_chat.id
 
+    cursor.execute(
+        "SELECT period FROM users_data WHERE user_id = ?",
+        (uid,)
+    )
+    intervals = cursor.fetchone()[0]
 
     context.job_queue.run_repeating(
         ask_exercise,
-        interval=10,
+        interval=intervals,
         first=0,
         chat_id=chat_id,
         name=str(chat_id),
     )
 
-    await update.message.reply_text("Я буду задавать тебе вопрос раз в 10 секунд.")
+    await update.message.reply_text(f"Я буду задавать тебе вопрос раз в {intervals} секунд.")
 
 
 async def stop(update, context):
@@ -121,10 +173,23 @@ async def reset(update, context):
 
 app = ApplicationBuilder().token(TOKEN).build()
 
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("time", ask_time)],
+
+    states={
+        ASK_TIME: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, get_time)
+        ],
+    },
+
+    fallbacks=[],
+)
+
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("stop", stop))
 app.add_handler(CommandHandler("launch", launch))
 app.add_handler(CommandHandler("reset", reset))
+app.add_handler(conv_handler)
 app.add_handler(
     MessageHandler(filters.TEXT & ~filters.COMMAND, save_exercise)
 )

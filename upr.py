@@ -16,6 +16,7 @@ with open("tokens.txt", "r", encoding="utf-8") as f:
 TOKEN = f"{token}"
 ASK_TIME = range(1)
 
+
 conn = sqlite3.connect("database.db")
 cursor = conn.cursor()
 
@@ -106,10 +107,24 @@ async def save_exercise(update, context):
 
     user_id = update.effective_user.id
     exercises = update.message.text.split(' ')
+    if len(exercises) != 3:
+        await update.message.reply_text("Кол-во элементов через пробел не равно 3.")
+        return
+    try:
+        pushups = int(exercises[0])
+        squats = int(exercises[1])
+        abdominal = int(exercises[2])
+    except ValueError:
+        await update.message.reply_text("Введите числа")
+        return
 
-    pushups = exercises[0]
-    squats = exercises[1]
-    abdominal = exercises[2]
+    print(pushups, squats, abdominal)
+
+    if pushups < 0 or squats < 0 or abdominal < 0:
+        await update.message.reply_text("Введите положительные числа")
+        return
+
+
 
     save_data(user_id, pushups, squats, abdominal)
 
@@ -127,6 +142,11 @@ async def save_exercise(update, context):
     return ConversationHandler.END
 
 async def launch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if len(context.job_queue.jobs()) > 0:
+        await update.message.reply_text("Сбор уже запущен")
+        return
+
     uid = update.effective_user.id
     chat_id = update.effective_chat.id
 
@@ -149,6 +169,8 @@ async def launch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text(f"Я буду задавать тебе вопрос раз в {intervals} секунд.")
+
+
 
 
 async def stop(update, context):

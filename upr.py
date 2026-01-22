@@ -44,7 +44,7 @@ def save_data(user_id, pushups, squats, abdominal):
     conn.commit()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Бот работает.")
+    await update.message.reply_text("Список команд: \n /launch - начать сбор \n /time - изменить интервал сбора \n /reset - обнулить свою статистику \n /stop - остановить сбор.")
 
 async def ask_exercise(context):
     chat_id = context.job.chat_id
@@ -134,6 +134,10 @@ async def launch(update: Update, context: ContextTypes.DEFAULT_TYPE):
         (uid,)
     )
     intervals = cursor.fetchone()[0]
+
+    if intervals is None:
+        intervals = 600
+        await update.message.reply_text(f"Так, как вы не указали время, то выставилось время по-умолчанию - 10 минут")
 
     context.job_queue.run_repeating(
         ask_exercise,
